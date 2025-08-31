@@ -33,7 +33,52 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      */
 
     /// BEGIN YOUR CODE
-
+    float *Z_batch = new float[batch * k]; // [batch, k]
+    float *G = new float[n * k]; // Gradient
+    for(size_t x1 = 0; x1 < m; x1+=batch) {
+        // Perform exp(X_batch @ theta), [m, n] @ [n, k] = [m, k]
+        for(size_t b = 0; b < batch; b+=1) {
+            for(size_t t2 = 0; t2 < k; t2++) {
+                auto sum = 0.0f;
+                for(size_t x2 = 0; x2 < n; x2++) {
+                    sum += X[(x1 + b) * n + x2] * theta[x2 * k + t2];
+                }
+                Z_batch[b * k + t2] = exp(sum);
+            }
+        }
+        // Normalize Z_batch row-wise, substract IY
+        for(size_t z1 = 0; z1 < batch; z1++) {
+            auto row_sum = 0.0f;
+            for(size_t z2 = 0; z2 < k; z2++) {
+                row_sum += Z_batch[z1 * k + z2];
+            }
+            for(size_t z2 = 0; z2 < k; z2++) {
+                Z_batch[z1 * k + z2] = 
+                    Z_batch[z1 * k + z2]/row_sum -
+                    (y[x1 + z1] == z2? 1.0f : 0.0f);
+            }
+        }
+        // Clean Gradient
+        std::fill(G, G + n*k, 0);
+        // Calculate Gradient = X_batch.T @ Z_batch [n, batch] @ [batch, k] = [n, k]
+        // Make step after we have current element
+        for(size_t x2 = 0; x2 < n; x2++) {
+            for(size_t z2 = 0; z2 < k; z2++) {
+                auto sum = 0.0f;
+                for(size_t b = 0; b < batch; b++) {
+                    sum += X[(x1 + b) * n + x2] * Z_batch[b * k + z2];
+                }
+                G[x2 * k + z2] = sum;
+            }
+        }
+        // Update Theta
+        for(size_t i = 0; i < n * k; i++) {
+            theta[i] -= lr/static_cast<float>(batch) * G[i];
+        }
+    }
+    // Clean
+    delete[] Z_batch;
+    delete[] G;
     /// END YOUR CODE
 }
 
